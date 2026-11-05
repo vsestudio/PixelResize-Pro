@@ -2,35 +2,41 @@
 package com.pixelresize.pro.image
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
+import java.io.IOException
+import java.io.OutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
 
 object ImageExporter {
 
     suspend fun exportImage(
         context: Context,
-        bitmap: android.graphics.Bitmap,
+        bitmap: Bitmap,
         destination: Uri,
         format: ImageFormat,
         quality: Int
     ): Long = withContext(Dispatchers.IO) {
 
+        require(!bitmap.isRecycled) {
+            "A imagem já não está disponível na memória."
+        }
+
         require(quality in 1..100) {
             "A qualidade deve estar entre 1 e 100."
         }
 
-        val resolver = context.contentResolver
-
-        val outputStream = resolver.openOutputStream(
+        val outputStream = context.contentResolver.openOutputStream(
             destination,
             "w"
         ) ?: throw IOException(
             "Não foi possível criar o ficheiro de destino."
         )
 
-        outputStream.use { stream ->
+        val countingStream = CountingOutputStream(outputStream)
+
+        countingStream.use { stream ->
 
             val successful = bitmap.compress(
                 format.compressionFormat(),
@@ -40,36 +46,43 @@ object ImageExporter {
 
             if (!successful) {
                 throw IOException(
-                    "Não foi possível exportar a imagem."
+                    "Não foi possível comprimir a imagem."
                 )
             }
 
             stream.flush()
         }
 
-        val fileSize = resolver.query(
-            destination,
-            arrayOf(android.provider.OpenableColumns.SIZE),
-            null,
-            null,
-            null
-        )?.use { cursor ->
+        countingStream.bytesWritten
+    }
 
-            if (cursor.moveToFirst()) {
-                val index = cursor.getColumnIndex(
-                    android.provider.OpenableColumns.SIZE
-                )
+    private class CountingOutputStream(
+        private val output: OutputStream
+    ) : OutputStream() {
 
-                if (index >= 0 && !cursor.isNull(index)) {
-                    cursor.getLong(index)
-                } else {
-                    -1L
-                }
-            } else {
-                -1L
-            }
-        } ?: -1L
+        var bytesWritten: Long = 0
+            private set
 
-        fileSize
+        override fun write(value: Int) {
+            output.write(value)
+            bytesWritten++
+        }
+
+        override fun write(
+            buffer: ByteArray,
+            offset: Int,
+            length: Int
+        ) {
+            output.write(buffer, offset, length)
+            bytesWritten += length
+        }
+
+        override fun flush() {
+            output.flush()
+        }
+
+        override fun close() {
+            output.close()
+        }
     }
 }
