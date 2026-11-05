@@ -6,7 +6,7 @@
         android:allowBackup="false"
         android:label="PixelResize Pro"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"
