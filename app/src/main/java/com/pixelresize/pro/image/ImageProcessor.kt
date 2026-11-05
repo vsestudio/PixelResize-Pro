@@ -9,7 +9,6 @@ import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.max
 
 data class ImageInfo(
     val width: Int,
@@ -21,7 +20,11 @@ data class ImageInfo(
 object ImageProcessor {
 
     const val MAX_DIMENSION = 12000
-    const val MAX_PIXELS = 40_000_000L
+
+    // Limite de saída para reduzir o consumo de memória.
+    const val MAX_PIXELS = 8_000_000L
+
+    private const val MAX_SOURCE_DIMENSION = 100_000
 
     suspend fun inspectImage(
         context: Context,
@@ -40,8 +43,18 @@ object ImageProcessor {
             BitmapFactory.decodeStream(stream, null, bounds)
         }
 
-        require(bounds.outWidth > 0 && bounds.outHeight > 0) {
+        require(
+            bounds.outWidth > 0 &&
+                bounds.outHeight > 0
+        ) {
             "O ficheiro seleccionado não é uma imagem válida."
+        }
+
+        require(
+            bounds.outWidth <= MAX_SOURCE_DIMENSION &&
+                bounds.outHeight <= MAX_SOURCE_DIMENSION
+        ) {
+            "A imagem possui dimensões demasiado grandes."
         }
 
         val rotation = readRotation(context, uri)
@@ -63,16 +76,17 @@ object ImageProcessor {
         targetHeight: Int
     ): Bitmap = withContext(Dispatchers.IO) {
 
-        require(targetWidth in 1..MAX_DIMENSION) {
-            "A largura deve estar entre 1 e $MAX_DIMENSION pixels."
+        require(
+            targetWidth in 1..MAX_DIMENSION &&
+                targetHeight in 1..MAX_DIMENSION
+        ) {
+            "As dimensões devem estar entre 1 e $MAX_DIMENSION pixels."
         }
 
-        require(targetHeight in 1..MAX_DIMENSION) {
-            "A altura deve estar entre 1 e $MAX_DIMENSION pixels."
-        }
-
-        require(targetWidth.toLong() * targetHeight <= MAX_PIXELS) {
-            "A resolução máxima permitida é 40 megapixels."
+        require(
+            targetWidth.toLong() * targetHeight <= MAX_PIXELS
+        ) {
+            "A resolução máxima permitida é de 8 megapixels."
         }
 
         val info = inspectImage(context, uri)
@@ -89,11 +103,15 @@ object ImageProcessor {
             BitmapFactory.decodeStream(stream, null, options)
         }
 
-        val rotated = info.rotationDegrees == 90 ||
-            info.rotationDegrees == 270
+        val rotated =
+            info.rotationDegrees == 90 ||
+                info.rotationDegrees == 270
 
-        val requiredWidth = if (rotated) targetHeight else targetWidth
-        val requiredHeight = if (rotated) targetWidth else targetHeight
+        val requiredWidth =
+            if (rotated) targetHeight else targetWidth
+
+        val requiredHeight =
+            if (rotated) targetWidth else targetHeight
 
         var sampleSize = 1
 
@@ -104,46 +122,64 @@ object ImageProcessor {
             sampleSize *= 2
         }
 
+        // Evita descodificar uma imagem intermédia demasiado grande.
+        while (
+            (options.outWidth.toLong() / sampleSize) *
+                (options.outHeight.toLong() / sampleSize) >
+                MAX_PIXELS
+        ) {
+            sampleSize *= 2
+        }
+
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
 
-        val decoded = context.contentResolver.openInputStream(uri).use { stream ->
-            requireNotNull(stream) {
+        val decoded = context.contentResolver
+            .openInputStream(uri)
+            .use { stream ->
+
+                requireNotNull(stream) {
+                    "Não foi possível descodificar a imagem."
+                }
+
+                BitmapFactory.decodeStream(
+                    stream,
+                    null,
+                    decodeOptions
+                )
+            } ?: throw IllegalArgumentException(
                 "Não foi possível descodificar a imagem."
+            )
+
+        var oriented: Bitmap? = null
+
+        try {
+            oriented = applyOrientation(
+                decoded,
+                info.rotationDegrees
+            )
+
+            Bitmap.createScaledBitmap(
+                oriented,
+                targetWidth,
+                targetHeight,
+                true
+            )
+        } finally {
+            if (
+                oriented != null &&
+                oriented !== decoded &&
+                !oriented.isRecycled
+            ) {
+                oriented.recycle()
             }
 
-            BitmapFactory.decodeStream(
-                stream,
-                null,
-                decodeOptions
-            )
-        } ?: throw IllegalArgumentException(
-            "Não foi possível descodificar a imagem."
-        )
-
-        val oriented = applyOrientation(
-            decoded,
-            info.rotationDegrees
-        )
-
-        val resized = Bitmap.createScaledBitmap(
-            oriented,
-            targetWidth,
-            targetHeight,
-            true
-        )
-
-        if (oriented !== decoded && !decoded.isRecycled) {
-            decoded.recycle()
+            if (!decoded.isRecycled) {
+                decoded.recycle()
+            }
         }
-
-        if (resized !== oriented && !oriented.isRecycled) {
-            oriented.recycle()
-        }
-
-        resized
     }
 
     private suspend fun readRotation(
@@ -152,6 +188,7 @@ object ImageProcessor {
     ): Int = withContext(Dispatchers.IO) {
 
         context.contentResolver.openInputStream(uri).use { stream ->
+
             requireNotNull(stream) {
                 "Não foi possível ler os metadados da imagem."
             }
