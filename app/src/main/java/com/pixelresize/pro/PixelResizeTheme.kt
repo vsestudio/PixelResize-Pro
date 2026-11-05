@@ -1,4 +1,3 @@
-
 package com.pixelresize.pro
 
 import androidx.compose.material3.MaterialTheme
