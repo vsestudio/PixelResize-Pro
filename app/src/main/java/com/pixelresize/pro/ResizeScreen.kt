@@ -1,3 +1,4 @@
+
 package com.pixelresize.pro
 
 import android.content.ContentValues
@@ -52,9 +53,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.pixelresize.pro.image.ImageExporter
 import com.pixelresize.pro.image.ImageFormat
 import com.pixelresize.pro.image.ImageProcessor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 @Composable
@@ -79,22 +83,27 @@ fun ResizeScreen(
 
     var keepAspectRatio by remember { mutableStateOf(true) }
 
-    var format by remember { mutableStateOf(ImageFormat.JPEG) }
+    var format by remember {
+        mutableStateOf(ImageFormat.JPEG)
+    }
+
     var quality by remember { mutableStateOf(90f) }
 
     var isLoading by remember { mutableStateOf(true) }
     var isProcessing by remember { mutableStateOf(false) }
+
     var processingMessage by remember {
         mutableStateOf("A preparar imagem...")
     }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Impedir sair acidentalmente durante a exportação.
-    BackHandler(enabled = isProcessing) {
-        // O processamento continua até terminar.
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
     }
 
-    // Selecionar outra imagem.
+    BackHandler(enabled = isProcessing) {
+        // Evita interromper acidentalmente a exportação.
+    }
+
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { newUri ->
@@ -103,7 +112,6 @@ fun ResizeScreen(
         }
     }
 
-    // Analisar a imagem selecionada.
     LaunchedEffect(selectedImageUri) {
         isLoading = true
         errorMessage = null
@@ -125,6 +133,8 @@ fun ResizeScreen(
             width = info.width.toString()
             height = info.height.toString()
 
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             errorMessage = error.message
                 ?: "Não foi possível ler a imagem."
@@ -159,7 +169,6 @@ fun ResizeScreen(
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
 
-            // Cabeçalho.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -212,7 +221,6 @@ fun ResizeScreen(
 
             } else if (sourceWidth > 0 && sourceHeight > 0) {
 
-                // Pré-visualização.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -222,7 +230,6 @@ fun ResizeScreen(
                     ImagePreview(selectedImageUri)
                 }
 
-                // Informação da imagem original.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -254,11 +261,10 @@ fun ResizeScreen(
                         },
                         enabled = !isProcessing
                     ) {
-                        Text("Change")
+                        Text("Alterar")
                     }
                 }
 
-                // Configurações.
                 ImageSettings(
                     sourceWidth = sourceWidth,
                     sourceHeight = sourceHeight,
@@ -275,7 +281,9 @@ fun ResizeScreen(
                                 height = (
                                     value.toDouble() *
                                         sourceHeight / sourceWidth
-                                ).toInt().coerceAtLeast(1).toString()
+                                ).toInt()
+                                    .coerceAtLeast(1)
+                                    .toString()
                             }
                         }
                     },
@@ -290,7 +298,9 @@ fun ResizeScreen(
                                 width = (
                                     value.toDouble() *
                                         sourceWidth / sourceHeight
-                                ).toInt().coerceAtLeast(1).toString()
+                                ).toInt()
+                                    .coerceAtLeast(1)
+                                    .toString()
                             }
                         }
                     },
@@ -311,7 +321,6 @@ fun ResizeScreen(
                     }
                 )
 
-                // Estimativa do tamanho.
                 val targetWidth = width.toIntOrNull() ?: 0
                 val targetHeight = height.toIntOrNull() ?: 0
 
@@ -356,7 +365,6 @@ fun ResizeScreen(
                     )
                 }
 
-                // Botão de processamento.
                 Button(
                     onClick = {
                         if (isProcessing || isLoading) {
@@ -389,10 +397,10 @@ fun ResizeScreen(
                         val outputWidth = finalWidth
                         val outputHeight = finalHeight
                         val outputFormat = format
-                        val outputQuality = quality.toInt()
+                        val outputQuality = quality.roundToInt()
+                            .coerceIn(1, 100)
                         val sourceToExport = selectedImageUri
 
-                        // Activar o estado visual.
                         isProcessing = true
                         processingMessage = "A preparar imagem..."
                         errorMessage = null
@@ -423,6 +431,8 @@ fun ResizeScreen(
                                     savedResult.second
                                 )
 
+                            } catch (error: CancellationException) {
+                                throw error
                             } catch (error: Exception) {
                                 errorMessage = error.message
                                     ?: "Não foi possível processar a imagem."
@@ -454,7 +464,6 @@ fun ResizeScreen(
             }
         }
 
-        // Janela de processamento.
         if (isProcessing) {
             Dialog(
                 onDismissRequest = {},
@@ -511,11 +520,6 @@ fun ResizeScreen(
         }
     }
 }
-
-/**
- * Guarda directamente em Downloads/Size Pro.
- * O ficheiro só fica visível depois da exportação terminar.
- */
 private suspend fun saveImageToDownloads(
     context: Context,
     sourceUri: Uri,
@@ -547,7 +551,10 @@ private suspend fun saveImageToDownloads(
     ) ?: throw IllegalStateException(
         "Não foi possível criar o ficheiro em Downloads."
     )
-try {
+
+    var published = false
+
+    try {
         onStage("A preparar e redimensionar a imagem...")
 
         val bitmap: Bitmap = ImageProcessor.decodeImage(
@@ -565,10 +572,12 @@ try {
                 bitmap = bitmap,
                 destination = destination,
                 format = format,
-                quality = quality
+                quality = quality.coerceIn(1, 100)
             )
         } finally {
-            bitmap.recycle()
+            if (!bitmap.isRecycled) {
+                bitmap.recycle()
+            }
         }
 
         onStage("A finalizar e guardar o ficheiro...")
@@ -583,19 +592,25 @@ try {
             null,
             null
         )
- if (updatedRows <= 0) {
+
+        if (updatedRows <= 0) {
             throw IllegalStateException(
                 "Não foi possível finalizar a gravação."
             )
         }
 
+        published = true
+
         onStage("Imagem guardada com sucesso!")
 
         return destination to fileSize
 
-    } catch (error: Exception) {
-        resolver.delete(destination, null, null)
-        throw error
+    } finally {
+        if (!published) {
+            runCatching {
+                resolver.delete(destination, null, null)
+            }
+        }
     }
 }
 
@@ -618,6 +633,7 @@ private fun estimateOutputSize(
         ImageFormat.WEBP ->
             0.12 * (quality / 90f).coerceIn(0.1f, 1.2f)
     }
+
     return (pixels.toDouble() * bytesPerPixel)
         .roundToLong()
         .coerceAtLeast(1L)
@@ -626,10 +642,18 @@ private fun estimateOutputSize(
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes >= 1024L * 1024L ->
-            String.format("%.2f MB", bytes / (1024.0 * 1024.0))
+            String.format(
+                Locale.getDefault(),
+                "%.2f MB",
+                bytes / (1024.0 * 1024.0)
+            )
 
         bytes >= 1024L ->
-            String.format("%.0f KB", bytes / 1024.0)
+            String.format(
+                Locale.getDefault(),
+                "%.0f KB",
+                bytes / 1024.0
+            )
 
         else -> "$bytes B"
     }
