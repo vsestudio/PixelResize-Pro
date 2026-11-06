@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,9 +33,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.pixelresize.pro.image.ImageExporter
 import com.pixelresize.pro.image.ImageFormat
 import com.pixelresize.pro.image.ImageProcessor
@@ -48,6 +50,10 @@ fun ResizeScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    var selectedImageUri by remember(imageUri) {
+        mutableStateOf(imageUri)
+    }
 
     var sourceWidth by remember { mutableStateOf(0) }
     var sourceHeight by remember { mutableStateOf(0) }
@@ -68,16 +74,30 @@ fun ResizeScreen(
     var pendingHeight by remember { mutableStateOf(0) }
     var pendingFormat by remember { mutableStateOf(ImageFormat.JPEG) }
     var pendingQuality by remember { mutableStateOf(90) }
+    var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
 
+    // Selecionar outra fotografia sem sair da tela de edição.
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { newUri ->
+        if (newUri != null) {
+            selectedImageUri = newUri
+        }
+    }
+
+    // Criar o ficheiro onde a imagem será guardada.
     val saveLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { activityResult ->
 
         val destination = activityResult.data?.data
+        val sourceToExport = pendingImageUri
+        pendingImageUri = null
 
         if (
             activityResult.resultCode == Activity.RESULT_OK &&
-            destination != null
+            destination != null &&
+            sourceToExport != null
         ) {
             scope.launch {
                 var bitmap: Bitmap? = null
@@ -88,7 +108,7 @@ fun ResizeScreen(
                 try {
                     bitmap = ImageProcessor.decodeImage(
                         context = context,
-                        uri = imageUri,
+                        uri = sourceToExport,
                         targetWidth = pendingWidth,
                         targetHeight = pendingHeight
                     )
@@ -121,14 +141,20 @@ fun ResizeScreen(
         }
     }
 
-    LaunchedEffect(imageUri) {
+    // Analisar a imagem atual, incluindo qualquer nova fotografia escolhida.
+    LaunchedEffect(selectedImageUri) {
         isLoading = true
         errorMessage = null
+
+        sourceWidth = 0
+        sourceHeight = 0
+        width = ""
+        height = ""
 
         try {
             val info = ImageProcessor.inspectImage(
                 context,
-                imageUri
+                selectedImageUri
             )
 
             sourceWidth = info.width
@@ -150,10 +176,11 @@ fun ResizeScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
+        // Cabeçalho.
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -168,9 +195,18 @@ fun ResizeScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "Editor",
+                text = "Resize",
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleLarge
+                fontSize = 22.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = "SP",
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -180,17 +216,43 @@ fun ResizeScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
-            Text("A analisar a imagem...")
+            Text(
+                text = "A analisar a imagem...",
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
 
         } else if (sourceWidth > 0 && sourceHeight > 0) {
 
-            ImagePreview(imageUri)
+            // Pré-visualização da fotografia atual.
+            ImagePreview(selectedImageUri)
 
-            Text(
-                text = "Original: $sourceWidth × $sourceHeight px",
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Dimensões originais e botão Change.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Original: $sourceWidth × $sourceHeight px",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
 
+                OutlinedButton(
+                    onClick = {
+                        imagePickerLauncher.launch(
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    },
+                    enabled = !isProcessing
+                ) {
+                    Text("Change")
+                }
+            }
+
+            // Configurações de redimensionamento.
             ImageSettings(
                 sourceWidth = sourceWidth,
                 sourceHeight = sourceHeight,
@@ -250,6 +312,7 @@ fun ResizeScreen(
                 )
             }
 
+            // Processar e guardar.
             Button(
                 onClick = {
                     val targetWidth = width.toIntOrNull()
@@ -273,9 +336,10 @@ fun ResizeScreen(
                     pendingHeight = targetHeight
                     pendingFormat = format
                     pendingQuality = quality.toInt()
+                    pendingImageUri = selectedImageUri
 
                     val filename =
-                        "PixelResizePro_${targetWidth}x${targetHeight}." +
+                        "SizePro_${targetWidth}x${targetHeight}." +
                             format.extension
 
                     val intent = Intent(
@@ -289,19 +353,23 @@ fun ResizeScreen(
                     try {
                         saveLauncher.launch(intent)
                     } catch (error: Exception) {
+                        pendingImageUri = null
                         errorMessage =
-                            "Não foi possível abrir o selector de ficheiros."
+                            "Não foi possível abrir o seletor de ficheiros."
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
+                    .height(52.dp),
                 enabled = !isProcessing && !isLoading,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Text("Redimensionar e guardar")
+                Text(
+                    "Resize Image",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             if (isProcessing) {
@@ -316,7 +384,7 @@ fun ResizeScreen(
             }
         }
 
-        if (errorMessage != null && sourceWidth == 0) {
+        if (errorMessage != null && sourceWidth == 0 && !isLoading) {
             Text(
                 text = errorMessage!!,
                 color = MaterialTheme.colorScheme.error
