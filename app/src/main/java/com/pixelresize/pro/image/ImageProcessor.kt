@@ -1,4 +1,3 @@
-
 package com.pixelresize.pro.image
 
 import android.content.Context
