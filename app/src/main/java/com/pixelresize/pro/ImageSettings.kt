@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+
 import com.pixelresize.pro.image.ImageFormat
 
 private enum class ActiveDimension {
@@ -54,14 +55,28 @@ fun ImageSettings(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(7.dp)
     ) {
 
-        Text(
-            text = "Dimensões da imagem",
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
-        )
+        // DIMENSÕES
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Dimensions",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            Text(
+                "Original: ${sourceWidth} × ${sourceHeight}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -76,15 +91,15 @@ fun ImageSettings(
                         activeDimension = ActiveDimension.WIDTH
                     },
                 readOnly = true,
-                label = { Text("Largura (px)") },
+                label = { Text("Width (px)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
 
             OutlinedTextField(
                 value = height,
@@ -95,79 +110,37 @@ fun ImageSettings(
                         activeDimension = ActiveDimension.HEIGHT
                     },
                 readOnly = true,
-                label = { Text("Altura (px)") },
+                label = { Text("Height (px)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(12.dp)
             )
         }
 
-        Text(
-            text = when (activeDimension) {
-                ActiveDimension.WIDTH -> "A editar: largura"
-                ActiveDimension.HEIGHT -> "A editar: altura"
-            },
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        // TECLADO NUMÉRICO INTEGRADO
-
-        NumericKeypad(
-            onDigit = { digit ->
-                val current = when (activeDimension) {
-                    ActiveDimension.WIDTH -> width
-                    ActiveDimension.HEIGHT -> height
-                }
-
-                if (current.length < 5) {
-                    val updated = current + digit
-
-                    when (activeDimension) {
-                        ActiveDimension.WIDTH -> onWidthChange(updated)
-                        ActiveDimension.HEIGHT -> onHeightChange(updated)
-                    }
-                }
-            },
-            onBackspace = {
-                val current = when (activeDimension) {
-                    ActiveDimension.WIDTH -> width
-                    ActiveDimension.HEIGHT -> height
-                }
-
-                val updated = current.dropLast(1)
-
-                when (activeDimension) {
-                    ActiveDimension.WIDTH -> onWidthChange(updated)
-                    ActiveDimension.HEIGHT -> onHeightChange(updated)
-                }
-            },
-            onClear = {
-                when (activeDimension) {
-                    ActiveDimension.WIDTH -> onWidthChange("")
-                    ActiveDimension.HEIGHT -> onHeightChange("")
-                }
-            }
-        )
-
+        // DIMENSÃO ATIVA E PROPORÇÃO
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Manter proporção",
-                    fontWeight = FontWeight.Medium
-                )
+            Text(
+                text = if (activeDimension == ActiveDimension.WIDTH) {
+                    "Editing: Width"
+                } else {
+                    "Editing: Height"
+                },
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
 
-                Text(
-                    text = "Ajustar automaticamente a outra dimensão",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(Modifier.weight(1f))
+
+            Text(
+                "Keep ratio",
+                style = MaterialTheme.typography.labelMedium
+            )
 
             Switch(
                 checked = keepAspectRatio,
@@ -175,58 +148,101 @@ fun ImageSettings(
             )
         }
 
+        // TECLADO NUMÉRICO
+        NumericKeypad(
+            onDigit = { digit ->
+                val current = if (
+                    activeDimension == ActiveDimension.WIDTH
+                ) width else height
+
+                if (current.length < 5) {
+                    val updated = current + digit
+
+                    if (activeDimension == ActiveDimension.WIDTH) {
+                        onWidthChange(updated)
+                    } else {
+                        onHeightChange(updated)
+                    }
+                }
+            },
+            onBackspace = {
+                val current = if (
+                    activeDimension == ActiveDimension.WIDTH
+                ) width else height
+
+                val updated = current.dropLast(1)
+
+                if (activeDimension == ActiveDimension.WIDTH) {
+                    onWidthChange(updated)
+                } else {
+                    onHeightChange(updated)
+                }
+            },
+            onClear = {
+                if (activeDimension == ActiveDimension.WIDTH) {
+                    onWidthChange("")
+                } else {
+                    onHeightChange("")
+                }
+            }
+        )
+
+        // FORMATO
         Text(
-            text = "Formato de saída",
+            "Output format",
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             ImageFormat.entries.forEach { imageFormat ->
                 FilterChip(
                     selected = format == imageFormat,
-                    onClick = {
-                        onFormatChange(imageFormat)
-                    },
+                    onClick = { onFormatChange(imageFormat) },
                     label = {
-                        Text(imageFormat.displayName)
-                    }
+                        Text(
+                            imageFormat.displayName,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
 
-        Text(
-            text = "Qualidade: ${quality.toInt()}%",
-            fontWeight = FontWeight.Bold
-        )
+        // QUALIDADE
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Quality",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            Text(
+                if (format == ImageFormat.PNG) {
+                    "Lossless"
+                } else {
+                    "${quality.toInt()}%"
+                },
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
         Slider(
             value = quality,
             onValueChange = onQualityChange,
             valueRange = 1f..100f,
             enabled = format != ImageFormat.PNG
-        )
-
-        Text(
-            text = when (format) {
-                ImageFormat.JPEG ->
-                    "JPG: qualidade ajustável, sem transparência."
-
-                ImageFormat.PNG ->
-                    "PNG: compressão sem perdas."
-
-                ImageFormat.WEBP ->
-                    "WebP: formato moderno com qualidade ajustável."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Text(
-            text = "Imagem original: $sourceWidth × $sourceHeight px",
-            style = MaterialTheme.typography.bodySmall
         )
     }
 }
