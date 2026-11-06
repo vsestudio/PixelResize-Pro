@@ -1,4 +1,3 @@
-
 package com.pixelresize.pro
 
 import android.net.Uri
