@@ -1,7 +1,8 @@
-
 package com.pixelresize.pro
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,9 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.pixelresize.pro.data.ImageResult
 
 @Composable
@@ -35,102 +41,213 @@ fun ResultScreen(
     onResizeAgain: () -> Unit,
     onUploadAnother: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+    val configuration = LocalConfiguration.current
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
     ) {
+        val needsScroll =
+            maxHeight < 700.dp ||
+            configuration.fontScale > 1.15f
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
+        val previewHeight = (maxHeight * 0.25f)
+            .coerceIn(145.dp, 205.dp)
+
+        val contentModifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (needsScroll) {
+                    Modifier.verticalScroll(rememberScrollState())
+                } else {
+                    Modifier
+                }
+            )
+            .padding(horizontal = 18.dp, vertical = 12.dp)
+
+        Column(
+            modifier = contentModifier,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary
-            )
 
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Text(
-                text = "Imagem processada!",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        ImagePreview(
-            imageUri = result.uri
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            // Confirmação de sucesso.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Sucesso",
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .width(34.dp)
+                        .height(34.dp)
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "Imagem guardada!",
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Text(
+                        text = "A tua imagem foi processada com sucesso.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Text(
-                    text = "Detalhes do resultado",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                ResultDetail(
-                    label = "Resolução",
-                    value = result.resolution
-                )
-
-                ResultDetail(
-                    label = "Tamanho do ficheiro",
-                    value = result.formattedFileSize
-                )
-
-                ResultDetail(
-                    label = "Formato",
-                    value = result.format.displayName
+                    text = "SP",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 19.sp,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
+            // Pré-visualização do resultado final.
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(previewHeight),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ImagePreview(
+                        imageUri = result.uri
+                    )
+                }
+            }
 
-        Button(
-            onClick = onShare,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Share,
-                contentDescription = null
-            )
+            // Localização onde a imagem foi guardada.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
 
-            Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-            Text("Partilhar imagem")
-        }
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "Localização do ficheiro",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
 
-        OutlinedButton(
-            onClick = onResizeAgain,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Redimensionar novamente")
-        }
+                        Text(
+                            text = "Downloads / Size Pro",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
 
-        OutlinedButton(
-            onClick = onUploadAnother,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Escolher outra imagem")
+            // Detalhes reais da imagem exportada.
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Detalhes do resultado",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    ResultDetail(
+                        label = "Resolução",
+                        value = result.resolution
+                    )
+
+                    ResultDetail(
+                        label = "Tamanho do ficheiro",
+                        value = result.formattedFileSize
+                    )
+
+                    ResultDetail(
+                        label = "Formato",
+                        value = result.format.displayName
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Partilhar a imagem exportada.
+            Button(
+                onClick = onShare,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null
+                )
+
+                Spacer(modifier = Modifier.width(9.dp))
+
+                Text(
+                    text = "Partilhar imagem",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Reutilizar o fluxo de edição.
+            OutlinedButton(
+                onClick = onResizeAgain,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+            ) {
+                Text("Redimensionar novamente")
+            }
+
+            OutlinedButton(
+                onClick = onUploadAnother,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+            ) {
+                Text("Escolher outra imagem")
+            }
         }
     }
 }
@@ -147,12 +264,15 @@ private fun ResultDetail(
     ) {
         Text(
             text = label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium
         )
 
         Text(
             text = value,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium
         )
     }
 }
