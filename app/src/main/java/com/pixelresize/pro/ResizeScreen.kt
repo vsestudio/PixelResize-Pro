@@ -1,9 +1,11 @@
 package com.pixelresize.pro
 
-import android.app.Activity
-import android.content.Intent
+import android.content.ContentValues
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,15 +36,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
 import com.pixelresize.pro.image.ImageExporter
 import com.pixelresize.pro.image.ImageFormat
 import com.pixelresize.pro.image.ImageProcessor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToLong
 
 @Composable
@@ -74,73 +78,12 @@ fun ResizeScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    var pendingWidth by remember { mutableStateOf(0) }
-    var pendingHeight by remember { mutableStateOf(0) }
-    var pendingFormat by remember { mutableStateOf(ImageFormat.JPEG) }
-    var pendingQuality by remember { mutableStateOf(90) }
-    var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
-
-    // Escolher outra imagem sem sair da edição.
+    // Selecionar outra imagem sem sair da edição.
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { newUri ->
         if (newUri != null) {
             selectedImageUri = newUri
-        }
-    }
-
-    // Guardar e processar a imagem no destino escolhido.
-    val saveLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { activityResult ->
-
-        val destination = activityResult.data?.data
-        val sourceToExport = pendingImageUri
-        pendingImageUri = null
-
-        if (
-            activityResult.resultCode == Activity.RESULT_OK &&
-            destination != null &&
-            sourceToExport != null
-        ) {
-            scope.launch {
-                var bitmap: Bitmap? = null
-
-                isProcessing = true
-                errorMessage = null
-
-                try {
-                    bitmap = ImageProcessor.decodeImage(
-                        context = context,
-                        uri = sourceToExport,
-                        targetWidth = pendingWidth,
-                        targetHeight = pendingHeight
-                    )
-
-                    val fileSize = ImageExporter.exportImage(
-                        context = context,
-                        bitmap = bitmap,
-                        destination = destination,
-                        format = pendingFormat,
-                        quality = pendingQuality
-                    )
-
-                    onImageProcessed(
-                        destination,
-                        pendingWidth,
-                        pendingHeight,
-                        pendingFormat,
-                        fileSize
-                    )
-
-                } catch (error: Exception) {
-                    errorMessage = error.message
-                        ?: "Ocorreu um erro ao processar a imagem."
-                } finally {
-                    bitmap?.recycle()
-                    isProcessing = false
-                }
-            }
         }
     }
 
@@ -177,9 +120,6 @@ fun ResizeScreen(
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Em ecrãs normais evitamos a rolagem.
-        // Em ecrãs muito pequenos ou com texto ampliado,
-        // mantemos uma alternativa para não cortar os controlos.
         val needsScroll =
             maxHeight < 740.dp ||
             configuration.fontScale > 1.15f
@@ -252,7 +192,7 @@ fun ResizeScreen(
 
             } else if (sourceWidth > 0 && sourceHeight > 0) {
 
-                // Pré-visualização compacta.
+                // Pré-visualização.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -262,7 +202,7 @@ fun ResizeScreen(
                     ImagePreview(selectedImageUri)
                 }
 
-                // Informação da imagem e substituição.
+                // Informação da imagem original.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -298,7 +238,7 @@ fun ResizeScreen(
                     }
                 }
 
-                // Configurações e teclado numérico.
+                // Configurações de redimensionamento.
                 ImageSettings(
                     sourceWidth = sourceWidth,
                     sourceHeight = sourceHeight,
@@ -396,7 +336,7 @@ fun ResizeScreen(
                     )
                 }
 
-                // Botão principal.
+                // Guardar diretamente em Downloads/Size Pro.
                 Button(
                     onClick = {
                         val finalWidth = width.toIntOrNull()
@@ -416,30 +356,49 @@ fun ResizeScreen(
                             return@Button
                         }
 
-                        pendingWidth = finalWidth
-                        pendingHeight = finalHeight
-                        pendingFormat = format
-                        pendingQuality = quality.toInt()
-                        pendingImageUri = selectedImageUri
-
-                        val filename =
-                            "SizePro_${finalWidth}x${finalHeight}." +
-                                format.extension
-
-                        val intent = Intent(
-                            Intent.ACTION_CREATE_DOCUMENT
-                        ).apply {
-                            addCategory(Intent.CATEGORY_OPENABLE)
-                            type = format.mimeType
-                            putExtra(Intent.EXTRA_TITLE, filename)
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                            errorMessage =
+                                "A gravação direta em Downloads requer Android 10 ou superior."
+                            return@Button
                         }
 
-                        try {
-                            saveLauncher.launch(intent)
-                        } catch (error: Exception) {
-                            pendingImageUri = null
-                            errorMessage =
-                                "Não foi possível abrir o seletor de ficheiros."
+                        val outputWidth = finalWidth
+                        val outputHeight = finalHeight
+                        val outputFormat = format
+                        val outputQuality = quality.toInt()
+                        val sourceToExport = selectedImageUri
+
+                        scope.launch {
+                            isProcessing = true
+                            errorMessage = null
+
+                            try {
+                                val savedResult = withContext(Dispatchers.IO) {
+                                    saveImageToDownloads(
+                                        context = context,
+                                        sourceUri = sourceToExport,
+                                        width = outputWidth,
+                                        height = outputHeight,
+                                        format = outputFormat,
+                                        quality = outputQuality
+                                    )
+                                }
+
+                                // Só abrir o resultado depois da gravação.
+                                onImageProcessed(
+                                    savedResult.first,
+                                    outputWidth,
+                                    outputHeight,
+                                    outputFormat,
+                                    savedResult.second
+                                )
+
+                            } catch (error: Exception) {
+                                errorMessage = error.message
+                                    ?: "Não foi possível guardar a imagem."
+                            } finally {
+                                isProcessing = false
+                            }
                         }
                     },
                     modifier = Modifier
@@ -456,14 +415,15 @@ fun ResizeScreen(
                             color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp
                         )
+
                         Text(
-                            text = "A processar...",
+                            text = "A guardar imagem...",
                             modifier = Modifier.padding(start = 10.dp),
                             fontWeight = FontWeight.Bold
                         )
                     } else {
                         Text(
-                            text = "Resize Image",
+                            text = "Guardar imagem",
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -480,6 +440,95 @@ fun ResizeScreen(
     }
 }
 
+/**
+ * Guarda a imagem diretamente na pasta pública Downloads/Size Pro.
+ *
+ * O ficheiro fica pendente enquanto está a ser escrito.
+ * Só fica visível para outras aplicações depois de a exportação terminar.
+ */
+private suspend fun saveImageToDownloads(
+    context: android.content.Context,
+    sourceUri: Uri,
+    width: Int,
+    height: Int,
+    format: ImageFormat,
+    quality: Int
+): Pair<Uri, Long> {
+
+    val resolver = context.contentResolver
+
+    val extension = format.extension
+    val mimeType = format.mimeType
+
+    val filename =
+        "SizePro_${width}x${height}_${System.currentTimeMillis()}.$extension"
+
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+        put(
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            "${Environment.DIRECTORY_DOWNLOADS}/Size Pro"
+        )
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+
+    val destination = resolver.insert(
+        MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+        values
+    ) ?: throw IllegalStateException(
+        "Não foi possível criar o ficheiro em Downloads."
+    )
+
+    try {
+        var bitmap: Bitmap? = null
+
+        val fileSize = try {
+            bitmap = ImageProcessor.decodeImage(
+                context = context,
+                uri = sourceUri,
+                targetWidth = width,
+                targetHeight = height
+            )
+
+            ImageExporter.exportImage(
+                context = context,
+                bitmap = bitmap,
+                destination = destination,
+                format = format,
+                quality = quality
+            )
+        } finally {
+            bitmap?.recycle()
+        }
+
+        // Publicar o ficheiro apenas depois da exportação completa.
+        val publishValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+
+        val updatedRows = resolver.update(
+            destination,
+            publishValues,
+            null,
+            null
+        )
+
+        if (updatedRows <= 0) {
+            throw IllegalStateException(
+                "A imagem foi processada, mas não foi possível finalizar a gravação."
+            )
+        }
+
+        return destination to fileSize
+
+    } catch (error: Exception) {
+        // Eliminar qualquer ficheiro incompleto.
+        resolver.delete(destination, null, null)
+        throw error
+    }
+}
+
 private fun estimateOutputSize(
     width: Int,
     height: Int,
@@ -491,9 +540,13 @@ private fun estimateOutputSize(
     val pixels = width.toLong() * height.toLong()
 
     val bytesPerPixel = when (format) {
-        ImageFormat.JPEG -> 0.18 * (quality / 90f).coerceIn(0.1f, 1.2f)
+        ImageFormat.JPEG ->
+            0.18 * (quality / 90f).coerceIn(0.1f, 1.2f)
+
         ImageFormat.PNG -> 1.0
-        ImageFormat.WEBP -> 0.12 * (quality / 90f).coerceIn(0.1f, 1.2f)
+
+        ImageFormat.WEBP ->
+            0.12 * (quality / 90f).coerceIn(0.1f, 1.2f)
     }
 
     return (pixels.toDouble() * bytesPerPixel)
