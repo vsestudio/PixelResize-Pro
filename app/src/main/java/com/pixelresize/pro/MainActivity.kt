@@ -63,12 +63,12 @@ fun PixelResizeApp() {
         mutableStateOf<ImageResult?>(null)
     }
 
-    // Navegação pelo botão físico de voltar.
+    // NAVEGAÇÃO VOLTAR
+
     BackHandler(
         enabled = currentScreen != AppScreen.HOME
     ) {
         when (currentScreen) {
-
             AppScreen.EDITOR -> {
                 currentScreen = AppScreen.HOME
             }
@@ -84,11 +84,15 @@ fun PixelResizeApp() {
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing),
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing
+            ),
         color = MaterialTheme.colorScheme.background
     ) {
 
         when (currentScreen) {
+
+            // TELA INICIAL
 
             AppScreen.HOME -> {
 
@@ -102,6 +106,8 @@ fun PixelResizeApp() {
                     }
                 )
             }
+
+            // TELA DE EDIÇÃO
 
             AppScreen.EDITOR -> {
 
@@ -117,11 +123,11 @@ fun PixelResizeApp() {
                         },
 
                         onImageProcessed = {
-                                uri,
-                                width,
-                                height,
-                                format,
-                                fileSize ->
+                            uri,
+                            width,
+                            height,
+                            format,
+                            fileSize ->
 
                             imageResult = ImageResult(
                                 uri = uri,
@@ -134,8 +140,14 @@ fun PixelResizeApp() {
                             currentScreen = AppScreen.RESULT
                         }
                     )
+
+                } else {
+
+                    currentScreen = AppScreen.HOME
                 }
             }
+
+            // TELA DE RESULTADO
 
             AppScreen.RESULT -> {
 
@@ -165,6 +177,14 @@ fun PixelResizeApp() {
                             currentScreen = AppScreen.HOME
                         }
                     )
+
+                } else {
+
+                    currentScreen = if (selectedImage != null) {
+                        AppScreen.EDITOR
+                    } else {
+                        AppScreen.HOME
+                    }
                 }
             }
         }
