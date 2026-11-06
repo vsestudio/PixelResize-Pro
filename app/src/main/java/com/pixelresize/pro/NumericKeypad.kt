@@ -16,6 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,24 +50,43 @@ fun NumericKeypad(
                     val isClear = key == "C"
 
                     val backgroundColor = when {
-                        isBackspace -> MaterialTheme.colorScheme.secondaryContainer
-                        isClear -> MaterialTheme.colorScheme.errorContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
+                        isBackspace ->
+                            MaterialTheme.colorScheme.secondaryContainer
+
+                        isClear ->
+                            MaterialTheme.colorScheme.errorContainer
+
+                        else ->
+                            MaterialTheme.colorScheme.surfaceVariant
                     }
 
                     val contentColor = when {
-                        isBackspace -> MaterialTheme.colorScheme.onSecondaryContainer
-                        isClear -> MaterialTheme.colorScheme.onErrorContainer
-                        else -> MaterialTheme.colorScheme.onSurface
+                        isBackspace ->
+                            MaterialTheme.colorScheme.onSecondaryContainer
+
+                        isClear ->
+                            MaterialTheme.colorScheme.onErrorContainer
+
+                        else ->
+                            MaterialTheme.colorScheme.onSurface
+                    }
+
+                    val accessibilityLabel = when {
+                        isBackspace -> "Apagar último dígito"
+                        isClear -> "Limpar valor"
+                        else -> "Número $key"
                     }
 
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
+                            .height(48.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(backgroundColor)
-                            .clickable {
+                            .semantics {
+                                contentDescription = accessibilityLabel
+                            }
+                            .clickable(role = Role.Button) {
                                 when (key) {
                                     "⌫" -> onBackspace()
                                     "C" -> onClear()
