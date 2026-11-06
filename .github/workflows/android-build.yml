@@ -1,5 +1,4 @@
-
-name: PixelResize Pro Android Build
+name: Size Pro Android Build
 
 on:
   push:
@@ -15,9 +14,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: size-pro-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Compile Android App
+    name: Compile Size Pro
     runs-on: ubuntu-latest
 
     steps:
@@ -30,20 +33,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle 9.6.0
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.6.0'
-          cache-provider: basic
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleDebug
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: PixelResize-Pro-Debug
+          name: Size-Pro-Debug
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
-          
