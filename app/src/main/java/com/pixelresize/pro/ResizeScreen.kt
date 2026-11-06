@@ -1,11 +1,13 @@
 package com.pixelresize.pro
 
 import android.content.ContentValues
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,13 +21,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +47,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.pixelresize.pro.image.ImageExporter
 import com.pixelresize.pro.image.ImageFormat
 import com.pixelresize.pro.image.ImageProcessor
@@ -76,13 +84,21 @@ fun ResizeScreen(
 
     var isLoading by remember { mutableStateOf(true) }
     var isProcessing by remember { mutableStateOf(false) }
+    var processingMessage by remember {
+        mutableStateOf("A preparar imagem...")
+    }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Selecionar outra imagem sem sair da edição.
+    // Impedir sair acidentalmente durante a exportação.
+    BackHandler(enabled = isProcessing) {
+        // O processamento continua até terminar.
+    }
+
+    // Selecionar outra imagem.
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { newUri ->
-        if (newUri != null) {
+        if (newUri != null && !isProcessing) {
             selectedImageUri = newUri
         }
     }
@@ -181,12 +197,16 @@ fun ResizeScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    modifier = Modifier.align(
+                        Alignment.CenterHorizontally
+                    )
                 )
 
                 Text(
                     text = "A analisar a imagem...",
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    modifier = Modifier.align(
+                        Alignment.CenterHorizontally
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
@@ -238,7 +258,7 @@ fun ResizeScreen(
                     }
                 }
 
-                // Configurações de redimensionamento.
+                // Configurações.
                 ImageSettings(
                     sourceWidth = sourceWidth,
                     sourceHeight = sourceHeight,
@@ -291,7 +311,7 @@ fun ResizeScreen(
                     }
                 )
 
-                // Estimativa indicativa do tamanho final.
+                // Estimativa do tamanho.
                 val targetWidth = width.toIntOrNull() ?: 0
                 val targetHeight = height.toIntOrNull() ?: 0
 
@@ -336,9 +356,13 @@ fun ResizeScreen(
                     )
                 }
 
-                // Guardar diretamente em Downloads/Size Pro.
+                // Botão de processamento.
                 Button(
                     onClick = {
+                        if (isProcessing || isLoading) {
+                            return@Button
+                        }
+
                         val finalWidth = width.toIntOrNull()
                         val finalHeight = height.toIntOrNull()
 
@@ -368,10 +392,12 @@ fun ResizeScreen(
                         val outputQuality = quality.toInt()
                         val sourceToExport = selectedImageUri
 
-                        scope.launch {
-                            isProcessing = true
-                            errorMessage = null
+                        // Activar o estado visual.
+                        isProcessing = true
+                        processingMessage = "A preparar imagem..."
+                        errorMessage = null
 
+                        scope.launch {
                             try {
                                 val savedResult = withContext(Dispatchers.IO) {
                                     saveImageToDownloads(
@@ -380,11 +406,15 @@ fun ResizeScreen(
                                         width = outputWidth,
                                         height = outputHeight,
                                         format = outputFormat,
-                                        quality = outputQuality
+                                        quality = outputQuality,
+                                        onStage = { message ->
+                                            withContext(Dispatchers.Main.immediate) {
+                                                processingMessage = message
+                                            }
+                                        }
                                     )
                                 }
 
-                                // Só abrir o resultado depois da gravação.
                                 onImageProcessed(
                                     savedResult.first,
                                     outputWidth,
@@ -395,7 +425,7 @@ fun ResizeScreen(
 
                             } catch (error: Exception) {
                                 errorMessage = error.message
-                                    ?: "Não foi possível guardar a imagem."
+                                    ?: "Não foi possível processar a imagem."
                             } finally {
                                 isProcessing = false
                             }
@@ -409,24 +439,10 @@ fun ResizeScreen(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    if (isProcessing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.height(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-
-                        Text(
-                            text = "A guardar imagem...",
-                            modifier = Modifier.padding(start = 10.dp),
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
-                        Text(
-                            text = "Guardar imagem",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Redimensionar e guardar",
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -437,35 +453,87 @@ fun ResizeScreen(
                 )
             }
         }
+
+        // Janela de processamento.
+        if (isProcessing) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(
+                    dismissOnBackPress = false,
+                    dismissOnClickOutside = false
+                )
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(26.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                    ) {
+
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .height(58.dp)
+                                .width(58.dp),
+                            strokeWidth = 4.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "A processar imagem",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Text(
+                            text = processingMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "Por favor, aguarde...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 /**
- * Guarda a imagem diretamente na pasta pública Downloads/Size Pro.
- *
- * O ficheiro fica pendente enquanto está a ser escrito.
- * Só fica visível para outras aplicações depois de a exportação terminar.
+ * Guarda directamente em Downloads/Size Pro.
+ * O ficheiro só fica visível depois da exportação terminar.
  */
 private suspend fun saveImageToDownloads(
-    context: android.content.Context,
+    context: Context,
     sourceUri: Uri,
     width: Int,
     height: Int,
     format: ImageFormat,
-    quality: Int
+    quality: Int,
+    onStage: suspend (String) -> Unit
 ): Pair<Uri, Long> {
 
     val resolver = context.contentResolver
 
-    val extension = format.extension
-    val mimeType = format.mimeType
-
     val filename =
-        "SizePro_${width}x${height}_${System.currentTimeMillis()}.$extension"
+        "SizePro_${width}x${height}_${System.currentTimeMillis()}.${format.extension}"
 
     val values = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+        put(MediaStore.MediaColumns.MIME_TYPE, format.mimeType)
         put(
             MediaStore.MediaColumns.RELATIVE_PATH,
             "${Environment.DIRECTORY_DOWNLOADS}/Size Pro"
@@ -479,17 +547,18 @@ private suspend fun saveImageToDownloads(
     ) ?: throw IllegalStateException(
         "Não foi possível criar o ficheiro em Downloads."
     )
+try {
+        onStage("A preparar e redimensionar a imagem...")
 
-    try {
-        var bitmap: Bitmap? = null
+        val bitmap: Bitmap = ImageProcessor.decodeImage(
+            context = context,
+            uri = sourceUri,
+            targetWidth = width,
+            targetHeight = height
+        )
 
         val fileSize = try {
-            bitmap = ImageProcessor.decodeImage(
-                context = context,
-                uri = sourceUri,
-                targetWidth = width,
-                targetHeight = height
-            )
+            onStage("A comprimir a imagem em ${format.displayName}...")
 
             ImageExporter.exportImage(
                 context = context,
@@ -499,10 +568,11 @@ private suspend fun saveImageToDownloads(
                 quality = quality
             )
         } finally {
-            bitmap?.recycle()
+            bitmap.recycle()
         }
 
-        // Publicar o ficheiro apenas depois da exportação completa.
+        onStage("A finalizar e guardar o ficheiro...")
+
         val publishValues = ContentValues().apply {
             put(MediaStore.MediaColumns.IS_PENDING, 0)
         }
@@ -513,17 +583,17 @@ private suspend fun saveImageToDownloads(
             null,
             null
         )
-
-        if (updatedRows <= 0) {
+ if (updatedRows <= 0) {
             throw IllegalStateException(
-                "A imagem foi processada, mas não foi possível finalizar a gravação."
+                "Não foi possível finalizar a gravação."
             )
         }
+
+        onStage("Imagem guardada com sucesso!")
 
         return destination to fileSize
 
     } catch (error: Exception) {
-        // Eliminar qualquer ficheiro incompleto.
         resolver.delete(destination, null, null)
         throw error
     }
@@ -548,7 +618,6 @@ private fun estimateOutputSize(
         ImageFormat.WEBP ->
             0.12 * (quality / 90f).coerceIn(0.1f, 1.2f)
     }
-
     return (pixels.toDouble() * bytesPerPixel)
         .roundToLong()
         .coerceAtLeast(1L)
