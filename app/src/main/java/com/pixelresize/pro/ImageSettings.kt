@@ -1,5 +1,6 @@
 package com.pixelresize.pro
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,8 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-
 import com.pixelresize.pro.image.ImageFormat
+import com.pixelresize.pro.image.ImageProcessor
 
 private enum class ActiveDimension {
     WIDTH,
@@ -54,7 +55,7 @@ fun ImageSettings(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
 
         // DIMENSÕES
@@ -63,7 +64,7 @@ fun ImageSettings(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Dimensions",
+                text = "Dimensões",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -71,16 +72,18 @@ fun ImageSettings(
             Spacer(Modifier.weight(1f))
 
             Text(
-                "Original: ${sourceWidth} × ${sourceHeight}",
+                text = "Original: ${sourceWidth} × ${sourceHeight}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
+        // CAMPOS DE LARGURA E ALTURA
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
             OutlinedTextField(
                 value = width,
                 onValueChange = {},
@@ -90,15 +93,14 @@ fun ImageSettings(
                         activeDimension = ActiveDimension.WIDTH
                     },
                 readOnly = true,
-                label = { Text("Width (px)") },
+                label = { Text("Largura (px)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                enabled = true
             )
-
-            Spacer(Modifier.width(8.dp))
 
             OutlinedTextField(
                 value = height,
@@ -109,25 +111,28 @@ fun ImageSettings(
                         activeDimension = ActiveDimension.HEIGHT
                     },
                 readOnly = true,
-                label = { Text("Height (px)") },
+                label = { Text("Altura (px)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number
                 ),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                enabled = true
             )
         }
 
-        // DIMENSÃO ATIVA E PROPORÇÃO
+        // DIMENSÃO ACTIVA E PROPORÇÃO
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (activeDimension == ActiveDimension.WIDTH) {
-                    "Editing: Width"
+                text = if (
+                    activeDimension == ActiveDimension.WIDTH
+                ) {
+                    "A editar: largura"
                 } else {
-                    "Editing: Height"
+                    "A editar: altura"
                 },
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.labelMedium,
@@ -137,7 +142,7 @@ fun ImageSettings(
             Spacer(Modifier.weight(1f))
 
             Text(
-                "Keep ratio",
+                text = "Manter proporção",
                 style = MaterialTheme.typography.labelMedium
             )
 
@@ -147,24 +152,35 @@ fun ImageSettings(
             )
         }
 
-        // TECLADO NUMÉRICO
+        // TECLADO NUMÉRICO PERSONALIZADO
         NumericKeypad(
             onDigit = { digit ->
+
                 val current = if (
                     activeDimension == ActiveDimension.WIDTH
                 ) width else height
 
-                if (current.length < 5) {
-                    val updated = current + digit
+                if (current.length >= 5) {
+                    return@NumericKeypad
+                }
 
-                    if (activeDimension == ActiveDimension.WIDTH) {
-                        onWidthChange(updated)
-                    } else {
-                        onHeightChange(updated)
-                    }
+                val updated = current + digit
+
+                val value = updated.toIntOrNull() ?: return@NumericKeypad
+
+                if (value > ImageProcessor.MAX_DIMENSION) {
+                    return@NumericKeypad
+                }
+
+                if (activeDimension == ActiveDimension.WIDTH) {
+                    onWidthChange(updated)
+                } else {
+                    onHeightChange(updated)
                 }
             },
+
             onBackspace = {
+
                 val current = if (
                     activeDimension == ActiveDimension.WIDTH
                 ) width else height
@@ -177,7 +193,9 @@ fun ImageSettings(
                     onHeightChange(updated)
                 }
             },
+
             onClear = {
+
                 if (activeDimension == ActiveDimension.WIDTH) {
                     onWidthChange("")
                 } else {
@@ -186,9 +204,9 @@ fun ImageSettings(
             }
         )
 
-        // FORMATO
+        // FORMATO DE SAÍDA
         Text(
-            "Output format",
+            text = "Formato de saída",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold
         )
@@ -198,12 +216,15 @@ fun ImageSettings(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             ImageFormat.entries.forEach { imageFormat ->
+
                 FilterChip(
                     selected = format == imageFormat,
-                    onClick = { onFormatChange(imageFormat) },
+                    onClick = {
+                        onFormatChange(imageFormat)
+                    },
                     label = {
                         Text(
-                            imageFormat.displayName,
+                            text = imageFormat.displayName,
                             style = MaterialTheme.typography.labelSmall
                         )
                     },
@@ -218,7 +239,7 @@ fun ImageSettings(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Quality",
+                text = "Qualidade",
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -226,8 +247,8 @@ fun ImageSettings(
             Spacer(Modifier.weight(1f))
 
             Text(
-                if (format == ImageFormat.PNG) {
-                    "Lossless"
+                text = if (format == ImageFormat.PNG) {
+                    "Sem perdas"
                 } else {
                     "${quality.toInt()}%"
                 },
