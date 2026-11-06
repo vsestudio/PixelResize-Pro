@@ -1,3 +1,4 @@
+
 package com.pixelresize.pro
 
 import android.net.Uri
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,18 +42,42 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val AccentOrange = Color(0xFFFFA51F)
-private val AccentPink = Color(0xFFFF287F)
-private val AccentPurple = Color(0xFF963CFF)
-private val AccentGreen = Color(0xFF55D99A)
+private val HeaderGradient = Brush.linearGradient(
+    colors = listOf(
+        SizeProPalette.Orange,
+        SizeProPalette.Pink,
+        SizeProPalette.Violet
+    )
+)
+
+private val ActionGradient = Brush.horizontalGradient(
+    colors = listOf(
+        SizeProPalette.Orange,
+        Color(0xFFFF6B70),
+        SizeProPalette.Pink
+    )
+)
+
+private val BorderGradient = Brush.horizontalGradient(
+    colors = listOf(
+        SizeProPalette.Orange,
+        SizeProPalette.Pink,
+        SizeProPalette.Violet,
+        SizeProPalette.Blue
+    )
+)
 
 @Composable
 fun HomeScreen(
@@ -62,18 +88,8 @@ fun HomeScreen(
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        if (uri != null) {
-            onImageSelected(uri)
-        }
+        uri?.let(onImageSelected)
     }
-
-    val gradient = Brush.horizontalGradient(
-        colors = listOf(
-            AccentOrange,
-            Color(0xFFFF573D),
-            AccentPink
-        )
-    )
 
     Column(
         modifier = Modifier
@@ -83,6 +99,7 @@ fun HomeScreen(
             .padding(horizontal = 20.dp, vertical = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         // CABEÇALHO
 
         Row(
@@ -93,15 +110,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .size(62.dp)
                     .clip(RoundedCornerShape(19.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                AccentOrange,
-                                AccentPink,
-                                AccentPurple
-                            )
-                        )
-                    ),
+                    .background(HeaderGradient),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -122,25 +131,27 @@ fun HomeScreen(
                         text = "Size ",
                         fontSize = 29.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = SizeProPalette.TextPrimary
                     )
+
                     Text(
                         text = "Pro",
                         fontSize = 29.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = AccentPink
+                        color = SizeProPalette.Pink
                     )
                 }
 
                 Text(
                     text = "Redimensione as suas imagens",
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = SizeProPalette.TextSecondary
                 )
+
                 Text(
                     text = "com qualidade profissional!",
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = SizeProPalette.TextSecondary
                 )
             }
         }
@@ -154,14 +165,15 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .border(
                     width = 1.dp,
-                    brush = Brush.horizontalGradient(
-                        listOf(AccentOrange, AccentPink, AccentPurple)
-                    ),
+                    brush = BorderGradient,
                     shape = RoundedCornerShape(22.dp)
                 ),
             shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = SizeProPalette.Surface
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 5.dp
             )
         ) {
             Box {
@@ -181,14 +193,14 @@ fun HomeScreen(
                         .align(Alignment.BottomEnd)
                         .padding(12.dp)
                         .clip(CircleShape)
-                        .background(Color(0xCC171719))
+                        .background(Color(0xE6111116))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Image,
                         contentDescription = null,
-                        tint = AccentOrange,
+                        tint = SizeProPalette.Orange,
                         modifier = Modifier.size(17.dp)
                     )
 
@@ -203,6 +215,8 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(25.dp))
+
+        // TÍTULO E DESCRIÇÃO
 
         Text(
             text = "Escolha uma fotografia",
@@ -223,20 +237,23 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(23.dp))
 
-        // ESCOLHER FOTOGRAFIA
+        // BOTÃO PRINCIPAL
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(66.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .background(gradient)
-                .clickable {
+                .background(ActionGradient)
+                .clickable(role = Role.Button) {
                     photoPicker.launch(
                         PickVisualMediaRequest(
                             ActivityResultContracts.PickVisualMedia.ImageOnly
                         )
                     )
+                }
+                .semantics {
+                    contentDescription = "Escolher uma imagem do dispositivo"
                 }
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -249,7 +266,7 @@ fun HomeScreen(
                 modifier = Modifier.size(27.dp)
             )
 
-            Spacer(modifier = Modifier.size(15.dp))
+            Spacer(modifier = Modifier.width(15.dp))
 
             Text(
                 text = "Escolher imagem",
@@ -270,26 +287,27 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(17.dp))
 
-        // USAR IMAGEM DE EXEMPLO
+        // IMAGEM DE EXEMPLO OFFLINE
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surface)
+                .background(SizeProPalette.Surface)
                 .border(
                     width = 1.dp,
-                    brush = Brush.horizontalGradient(
-                        listOf(AccentOrange, AccentPink, AccentPurple)
-                    ),
+                    brush = BorderGradient,
                     shape = RoundedCornerShape(20.dp)
                 )
-                .clickable {
+                .clickable(role = Role.Button) {
                     val sampleUri = Uri.parse(
                         "android.resource://${context.packageName}/${R.drawable.sample_photo}"
                     )
                     onImageSelected(sampleUri)
+                }
+                .semantics {
+                    contentDescription = "Usar imagem de exemplo incluída na aplicação"
                 }
                 .padding(horizontal = 19.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -297,7 +315,7 @@ fun HomeScreen(
             Icon(
                 imageVector = Icons.Default.Star,
                 contentDescription = null,
-                tint = AccentOrange,
+                tint = SizeProPalette.Violet,
                 modifier = Modifier.size(25.dp)
             )
 
@@ -308,21 +326,21 @@ fun HomeScreen(
             ) {
                 Text(
                     text = "Usar imagem de exemplo",
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = SizeProPalette.TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
 
                 Text(
                     text = "Incluída na aplicação",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = SizeProPalette.TextSecondary,
                     fontSize = 12.sp
                 )
             }
 
             Text(
                 text = "›",
-                color = MaterialTheme.colorScheme.onSurface,
+                color = SizeProPalette.Blue,
                 fontSize = 30.sp
             )
         }
@@ -339,30 +357,46 @@ fun HomeScreen(
             FeatureItem(
                 icon = Icons.Default.Lock,
                 label = "Seguro",
-                color = AccentGreen
+                color = SizeProPalette.Green
             )
 
             FeatureItem(
                 icon = Icons.Default.Bolt,
                 label = "Rápido",
-                color = AccentOrange
+                color = SizeProPalette.Orange
             )
 
             FeatureItem(
                 icon = Icons.Default.Star,
                 label = "Qualidade",
-                color = AccentPink
+                color = SizeProPalette.Pink
             )
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Text(
-            text = "A sua imagem permanece no seu dispositivo.",
-            fontSize = 12.sp,
-            color = AccentGreen,
-            textAlign = TextAlign.Center
-        )
+        // PRIVACIDADE
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(SizeProPalette.Green)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "A sua imagem permanece no seu dispositivo.",
+                fontSize = 12.sp,
+                color = SizeProPalette.Green,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -370,7 +404,7 @@ fun HomeScreen(
 
 @Composable
 private fun FeatureItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     color: Color
 ) {
@@ -379,9 +413,14 @@ private fun FeatureItem(
     ) {
         Box(
             modifier = Modifier
-                .size(43.dp)
+                .size(45.dp)
                 .clip(CircleShape)
-                .background(color.copy(alpha = 0.16f)),
+                .background(color.copy(alpha = 0.14f))
+                .border(
+                    width = 1.dp,
+                    color = color.copy(alpha = 0.30f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -397,7 +436,7 @@ private fun FeatureItem(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = SizeProPalette.TextSecondary,
             fontWeight = FontWeight.Medium
         )
     }
