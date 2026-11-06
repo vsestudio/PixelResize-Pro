@@ -3,6 +3,7 @@ package com.pixelresize.pro
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +63,24 @@ fun PixelResizeApp() {
         mutableStateOf<ImageResult?>(null)
     }
 
+    // Navegação pelo botão físico de voltar.
+    BackHandler(
+        enabled = currentScreen != AppScreen.HOME
+    ) {
+        when (currentScreen) {
+
+            AppScreen.EDITOR -> {
+                currentScreen = AppScreen.HOME
+            }
+
+            AppScreen.RESULT -> {
+                currentScreen = AppScreen.EDITOR
+            }
+
+            AppScreen.HOME -> Unit
+        }
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -115,10 +134,6 @@ fun PixelResizeApp() {
                             currentScreen = AppScreen.RESULT
                         }
                     )
-
-                } else {
-
-                    currentScreen = AppScreen.HOME
                 }
             }
 
@@ -150,10 +165,6 @@ fun PixelResizeApp() {
                             currentScreen = AppScreen.HOME
                         }
                     )
-
-                } else {
-
-                    currentScreen = AppScreen.HOME
                 }
             }
         }
