@@ -21,7 +21,6 @@ object ImageProcessor {
 
     const val MAX_DIMENSION = 12000
 
-    // Limite de saída para reduzir o consumo de memória.
     const val MAX_PIXELS = 8_000_000L
 
     private const val MAX_SOURCE_DIMENSION = 100_000
@@ -122,7 +121,6 @@ object ImageProcessor {
             sampleSize *= 2
         }
 
-        // Evita descodificar uma imagem intermédia demasiado grande.
         while (
             (options.outWidth.toLong() / sampleSize) *
                 (options.outHeight.toLong() / sampleSize) >
@@ -154,29 +152,43 @@ object ImageProcessor {
             )
 
         var oriented: Bitmap? = null
+        var output: Bitmap? = null
 
         try {
-            oriented = applyOrientation(
+            val orientedBitmap = applyOrientation(
                 decoded,
                 info.rotationDegrees
             )
 
-            Bitmap.createScaledBitmap(
-                oriented,
+            oriented = orientedBitmap
+
+            val resultBitmap = Bitmap.createScaledBitmap(
+                orientedBitmap,
                 targetWidth,
                 targetHeight,
                 true
             )
+
+            output = resultBitmap
+
+            resultBitmap
+
         } finally {
+
+            // Preserva o Bitmap devolvido para a exportação.
             if (
                 oriented != null &&
                 oriented !== decoded &&
+                oriented !== output &&
                 !oriented.isRecycled
             ) {
                 oriented.recycle()
             }
 
-            if (!decoded.isRecycled) {
+            if (
+                decoded !== output &&
+                !decoded.isRecycled
+            ) {
                 decoded.recycle()
             }
         }
