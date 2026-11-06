@@ -1,4 +1,3 @@
-
 package com.pixelresize.pro.image
 
 import android.content.Context
@@ -40,7 +39,7 @@ object ImageExporter {
 
             val successful = bitmap.compress(
                 format.compressionFormat(),
-                if (format == ImageFormat.PNG) 100 else quality,
+                format.qualityForExport(quality),
                 stream
             )
 
@@ -60,7 +59,7 @@ object ImageExporter {
         private val output: OutputStream
     ) : OutputStream() {
 
-        var bytesWritten: Long = 0
+        var bytesWritten: Long = 0L
             private set
 
         override fun write(value: Int) {
