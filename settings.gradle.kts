@@ -1,4 +1,3 @@
-
 pluginManagement {
     repositories {
         google()
@@ -16,6 +15,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PixelResizePro"
+rootProject.name = "SizePro"
 
 include(":app")
