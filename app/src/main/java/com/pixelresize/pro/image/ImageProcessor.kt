@@ -7,7 +7,9 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.coroutineContext
 
 data class ImageInfo(
     val width: Int,
@@ -24,22 +26,35 @@ object ImageProcessor {
 
     private const val MAX_SOURCE_DIMENSION = 100_000
 
+    /**
+     * Lê as dimensões e a orientação EXIF
+     * sem carregar a imagem completa na memória.
+     */
     suspend fun inspectImage(
         context: Context,
         uri: Uri
     ): ImageInfo = withContext(Dispatchers.IO) {
+
+        coroutineContext.ensureActive()
 
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
 
         context.contentResolver.openInputStream(uri).use { stream ->
+
             requireNotNull(stream) {
                 "Não foi possível abrir a imagem."
             }
 
-            BitmapFactory.decodeStream(stream, null, bounds)
+            BitmapFactory.decodeStream(
+                stream,
+                null,
+                bounds
+            )
         }
+
+        coroutineContext.ensureActive()
 
         require(
             bounds.outWidth > 0 &&
@@ -60,13 +75,25 @@ object ImageProcessor {
         val rotated = rotation == 90 || rotation == 270
 
         ImageInfo(
-            width = if (rotated) bounds.outHeight else bounds.outWidth,
-            height = if (rotated) bounds.outWidth else bounds.outHeight,
+            width = if (rotated) {
+                bounds.outHeight
+            } else {
+                bounds.outWidth
+            },
+            height = if (rotated) {
+                bounds.outWidth
+            } else {
+                bounds.outHeight
+            },
             rotationDegrees = rotation,
             mimeType = context.contentResolver.getType(uri)
         )
     }
 
+    /**
+     * Descodifica, corrige a orientação e redimensiona
+     * a imagem para as dimensões solicitadas.
+     */
     suspend fun decodeImage(
         context: Context,
         uri: Uri,
@@ -87,50 +114,87 @@ object ImageProcessor {
             "A resolução máxima permitida é de 8 megapixels."
         }
 
+        coroutineContext.ensureActive()
+
         val info = inspectImage(context, uri)
-
-        val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-
-        context.contentResolver.openInputStream(uri).use { stream ->
-            requireNotNull(stream) {
-                "Não foi possível ler a imagem."
-            }
-
-            BitmapFactory.decodeStream(stream, null, options)
-        }
 
         val rotated =
             info.rotationDegrees == 90 ||
                 info.rotationDegrees == 270
 
-        val requiredWidth =
-            if (rotated) targetHeight else targetWidth
+        // Dimensões antes da aplicação da rotação EXIF.
+        val requiredWidth = if (rotated) {
+            targetHeight
+        } else {
+            targetWidth
+        }
 
-        val requiredHeight =
-            if (rotated) targetWidth else targetHeight
+        val requiredHeight = if (rotated) {
+            targetWidth
+        } else {
+            targetHeight
+        }
 
+        // Obter dimensões originais sem descodificar a imagem.
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+
+        context.contentResolver.openInputStream(uri).use { stream ->
+
+            requireNotNull(stream) {
+                "Não foi possível ler a imagem."
+            }
+
+            BitmapFactory.decodeStream(
+                stream,
+                null,
+                bounds
+            )
+        }
+
+        coroutineContext.ensureActive()
+
+        require(
+            bounds.outWidth > 0 &&
+                bounds.outHeight > 0
+        ) {
+            "Não foi possível identificar as dimensões da imagem."
+        }
+
+        /*
+         * Calcular uma amostragem adequada.
+         *
+         * O objectivo é evitar descodificar uma imagem
+         * muito maior do que a resolução necessária.
+         */
         var sampleSize = 1
 
         while (
-            options.outWidth / (sampleSize * 2) >= requiredWidth &&
-            options.outHeight / (sampleSize * 2) >= requiredHeight
+            bounds.outWidth / (sampleSize * 2) >= requiredWidth &&
+            bounds.outHeight / (sampleSize * 2) >= requiredHeight
         ) {
             sampleSize *= 2
         }
 
+        /*
+         * Limitar a memória utilizada durante a descodificação.
+         */
         while (
-            (options.outWidth.toLong() / sampleSize) *
-                (options.outHeight.toLong() / sampleSize) >
+            (bounds.outWidth.toLong() / sampleSize) *
+                (bounds.outHeight.toLong() / sampleSize) >
                 MAX_PIXELS
         ) {
             sampleSize *= 2
         }
 
+        coroutineContext.ensureActive()
+
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inScaled = false
+            inDither = false
         }
 
         val decoded = context.contentResolver
@@ -147,13 +211,17 @@ object ImageProcessor {
                     decodeOptions
                 )
             } ?: throw IllegalArgumentException(
-                "Não foi possível descodificar a imagem."
-            )
+            "Não foi possível descodificar a imagem."
+        )
 
         var oriented: Bitmap? = null
         var output: Bitmap? = null
 
         try {
+
+            coroutineContext.ensureActive()
+
+            // Corrigir a orientação da fotografia.
             val orientedBitmap = applyOrientation(
                 decoded,
                 info.rotationDegrees
@@ -161,6 +229,9 @@ object ImageProcessor {
 
             oriented = orientedBitmap
 
+            coroutineContext.ensureActive()
+
+            // Aplicar as dimensões escolhidas pelo utilizador.
             val resultBitmap = Bitmap.createScaledBitmap(
                 orientedBitmap,
                 targetWidth,
@@ -170,11 +241,18 @@ object ImageProcessor {
 
             output = resultBitmap
 
+            coroutineContext.ensureActive()
+
             resultBitmap
 
         } finally {
 
-            // Preserva o Bitmap devolvido para a exportação.
+            /*
+             * Libertar as imagens intermédias.
+             * O Bitmap devolvido permanece disponível
+             * para o ImageExporter.
+             */
+
             if (
                 oriented != null &&
                 oriented !== decoded &&
@@ -193,6 +271,9 @@ object ImageProcessor {
         }
     }
 
+    /**
+     * Ler a orientação EXIF da fotografia.
+     */
     private suspend fun readRotation(
         context: Context,
         uri: Uri
@@ -204,10 +285,19 @@ object ImageProcessor {
                 "Não foi possível ler os metadados da imagem."
             }
 
-            ExifInterface(stream).rotationDegrees
+            val degrees = ExifInterface(stream).rotationDegrees
+
+            if (degrees in listOf(0, 90, 180, 270)) {
+                degrees
+            } else {
+                0
+            }
         }
     }
 
+    /**
+     * Aplicar a rotação EXIF sem modificar o Bitmap original.
+     */
     private fun applyOrientation(
         bitmap: Bitmap,
         degrees: Int
