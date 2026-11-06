@@ -14,23 +14,34 @@ object ImageSharing {
         format: ImageFormat
     ) {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
+
             type = format.mimeType
 
-            putExtra(Intent.EXTRA_STREAM, imageUri)
-
-            clipData = ClipData.newUri(
-                context.contentResolver,
-                "PixelResize Pro image",
+            putExtra(
+                Intent.EXTRA_STREAM,
                 imageUri
             )
 
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(
+                context.contentResolver,
+                "Size Pro image",
+                imageUri
+            )
+
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
         }
 
         val chooser = Intent.createChooser(
             shareIntent,
-            "Partilhar imagem"
-        )
+            "Partilhar imagem — Size Pro"
+        ).apply {
+
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        }
 
         context.startActivity(chooser)
     }
