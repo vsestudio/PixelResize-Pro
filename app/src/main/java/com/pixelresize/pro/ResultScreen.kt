@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalConfiguration
@@ -50,26 +51,28 @@ fun ResultScreen(
             maxHeight < 700.dp ||
             configuration.fontScale > 1.15f
 
-        val previewHeight = (maxHeight * 0.25f)
-            .coerceIn(145.dp, 205.dp)
+        val previewHeight = (maxHeight * 0.24f)
+            .coerceIn(145.dp, 190.dp)
 
-        val contentModifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (needsScroll) {
-                    Modifier.verticalScroll(rememberScrollState())
-                } else {
-                    Modifier
-                }
-            )
-            .padding(horizontal = 18.dp, vertical = 12.dp)
+        val scrollState = rememberScrollState()
+
+        val contentModifier = if (needsScroll) {
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 18.dp, vertical = 12.dp)
+        } else {
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp, vertical = 12.dp)
+        }
 
         Column(
             modifier = contentModifier,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // Confirmação de sucesso.
+            // Cabeçalho de sucesso.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -77,7 +80,7 @@ fun ResultScreen(
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Sucesso",
-                    tint = MaterialTheme.colorScheme.secondary,
+                    tint = SizeProPalette.Green,
                     modifier = Modifier
                         .width(34.dp)
                         .height(34.dp)
@@ -107,18 +110,18 @@ fun ResultScreen(
                     text = "SP",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 19.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = SizeProPalette.Orange
                 )
             }
 
-            // Pré-visualização do resultado final.
+            // Pré-visualização da imagem exportada.
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(previewHeight),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = SizeProPalette.SurfaceVariant
                 )
             ) {
                 Box(
@@ -131,64 +134,65 @@ fun ResultScreen(
                 }
             }
 
-            // Localização onde a imagem foi guardada.
+            // Localização do ficheiro.
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    containerColor = SizeProPalette.SurfaceElevated
                 )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(13.dp),
+                        .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        tint = SizeProPalette.Orange
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Text(
                             text = "Localização do ficheiro",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
                         Text(
                             text = "Downloads / Size Pro",
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             }
 
-            // Detalhes reais da imagem exportada.
+            // Informações reais do ficheiro.
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = SizeProPalette.Surface
                 )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(13.dp)
                 ) {
                     Text(
                         text = "Detalhes do resultado",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     ResultDetail(
@@ -208,14 +212,20 @@ fun ResultScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            // Espaço flexível apenas quando não existe rolagem.
+            if (needsScroll) {
+                Spacer(modifier = Modifier.height(4.dp))
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
 
             // Partilhar a imagem exportada.
             Button(
                 onClick = onShare,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(15.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Share,
@@ -230,21 +240,24 @@ fun ResultScreen(
                 )
             }
 
-            // Reutilizar o fluxo de edição.
+            // Reutilizar a imagem no editor.
             OutlinedButton(
                 onClick = onResizeAgain,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(15.dp)
             ) {
                 Text("Redimensionar novamente")
             }
 
+            // Começar com outra imagem.
             OutlinedButton(
                 onClick = onUploadAnother,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(15.dp)
             ) {
                 Text("Escolher outra imagem")
             }
@@ -264,15 +277,18 @@ private fun ResultDetail(
     ) {
         Text(
             text = label,
+            modifier = Modifier.weight(1f),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium
         )
 
         Text(
             text = value,
+            modifier = Modifier.weight(1f),
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.End
         )
     }
 }
