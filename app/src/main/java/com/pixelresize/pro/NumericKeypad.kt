@@ -2,108 +2,83 @@ package com.pixelresize.pro
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun NumericKeypad(
-    onDigit: (String) -> Unit,
-    onBackspace: () -> Unit,
-    onClear: () -> Unit
+    onNumberClick: (String) -> Unit,
+    onDeleteClick: () -> Unit,
+    onActionClick: () -> Unit
 ) {
     val keys = listOf(
-        listOf("7", "8", "9", "⌫"),
-        listOf("4", "5", "6", "C"),
-        listOf("1", "2", "3", "0")
+        listOf("7", "8", "9"),
+        listOf("4", "5", "6"),
+        listOf("1", "2", "3")
     )
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        keys.forEach { rowKeys ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                rowKeys.forEach { key ->
-
-                    val isBackspace = key == "⌫"
-                    val isClear = key == "C"
-
-                    val backgroundColor = when {
-                        isBackspace ->
-                            MaterialTheme.colorScheme.secondaryContainer
-
-                        isClear ->
-                            MaterialTheme.colorScheme.errorContainer
-
-                        else ->
-                            MaterialTheme.colorScheme.surfaceVariant
+        keys.forEach { row ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { key ->
+                    KeyItem(text = key, modifier = Modifier.weight(1f).clickable { onNumberClick(key) })
+                }
+                if (row[0] == "7") {
+                    Box(modifier = Modifier.weight(1f).height(55.dp).clip(RoundedCornerShape(12.dp)).background(ColorSuperficie).clickable { onDeleteClick() }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Backspace, contentDescription = null, color = ColorRosa)
                     }
-
-                    val contentColor = when {
-                        isBackspace ->
-                            MaterialTheme.colorScheme.onSecondaryContainer
-
-                        isClear ->
-                            MaterialTheme.colorScheme.onErrorContainer
-
-                        else ->
-                            MaterialTheme.colorScheme.onSurface
+                }
+                if (row[0] == "4") {
+                    Box(modifier = Modifier.weight(1f).height(55.dp).clip(RoundedCornerShape(12.dp)).background(ColorSuperficie), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.SwapVert, contentDescription = null, color = ColorAzul)
                     }
-
-                    val accessibilityLabel = when {
-                        isBackspace -> "Apagar último dígito"
-                        isClear -> "Limpar valor"
-                        else -> "Número $key"
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(backgroundColor)
-                            .semantics {
-                                contentDescription = accessibilityLabel
-                            }
-                            .clickable(role = Role.Button) {
-                                when (key) {
-                                    "⌫" -> onBackspace()
-                                    "C" -> onClear()
-                                    else -> onDigit(key)
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = key,
-                            color = contentColor,
-                            fontSize = if (key.length == 1) 19.sp else 21.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                }
+                if (row[0] == "1") {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            KeyItem(text = "0", modifier = Modifier.weight(3f).clickable { onNumberClick("0") })
+            Button(
+                onClick = onActionClick,
+                modifier = Modifier.weight(1f).height(55.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorRosa),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Resize", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun KeyItem(text: String, modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .height(55.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(ColorSuperficie),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
     }
 }
