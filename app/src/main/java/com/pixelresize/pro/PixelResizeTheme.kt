@@ -5,61 +5,59 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-/**
- * Paleta visual oficial do Size Pro.
- * Estas cores também podem ser utilizadas
- * individualmente nos componentes da aplicação.
- */
 object SizeProPalette {
 
-    val Background = Color(0xFF111116)
-    val Surface = Color(0xFF1B1B23)
-    val SurfaceVariant = Color(0xFF282832)
-    val SurfaceElevated = Color(0xFF22222D)
+    // Fundos
+    val Background = Color(0xFF101116)
+    val Surface = Color(0xFF191B25)
+    val SurfaceVariant = Color(0xFF222633)
+    val SurfaceElevated = Color(0xFF1D2230)
 
-    val Orange = Color(0xFFFF956B)
-    val OrangeLight = Color(0xFFFFB078)
+    // Cores principais vibrantes
+    val Blue = Color(0xFF010CFF)
+    val Magenta = Color(0xFFD600FF)
+    val Orange = Color(0xFFFFA400)
+    val NeonGreen = Color(0xFF0EFF00)
 
-    val Blue = Color(0xFF65B9FF)
-    val BlueLight = Color(0xFF91D0FF)
+    // Variações para compatibilidade com os restantes ecrãs
+    val BlueLight = Color(0xFF5260FF)
+    val OrangeLight = Color(0xFFFFBE40)
 
-    val Green = Color(0xFF55D6A5)
-    val GreenLight = Color(0xFF85E8BD)
+    val Green = NeonGreen
+    val GreenLight = Color(0xFF65FF5C)
 
-    val Pink = Color(0xFFFF83B5)
-    val PinkLight = Color(0xFFFFA5CB)
+    val Pink = Magenta
+    val PinkLight = Color(0xFFE45CFF)
 
-    val Violet = Color(0xFFB69AFF)
-    val VioletLight = Color(0xFFD0B9FF)
+    val Violet = Color(0xFF8B35FF)
+    val VioletLight = Color(0xFFB477FF)
 
-    val TextPrimary = Color(0xFFF8F5FA)
-    val TextSecondary = Color(0xFFB5B1C0)
+    // Texto e contornos
+    val TextPrimary = Color(0xFFFFFFFF)
+    val TextSecondary = Color(0xFFB9BDCA)
+    val Border = Color(0xFF303849)
 
-    val Border = Color(0xFF41404D)
-    val Error = Color(0xFFFF747E)
+    // Erros
+    val Error = Color(0xFFFF3B4F)
 }
 
 private val SizeProColors = darkColorScheme(
 
-    // Cor principal: laranja coral
-    primary = SizeProPalette.Orange,
-    onPrimary = Color(0xFF32180F),
-    primaryContainer = Color(0xFF593022),
-    onPrimaryContainer = Color(0xFFFFD7C7),
+    primary = SizeProPalette.Blue,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF1724A8),
+    onPrimaryContainer = Color.White,
 
-    // Cor secundária: azul
-    secondary = SizeProPalette.Blue,
-    onSecondary = Color(0xFF10243A),
-    secondaryContainer = Color(0xFF233D58),
-    onSecondaryContainer = Color(0xFFD2E9FF),
+    secondary = SizeProPalette.Magenta,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF650080),
+    onSecondaryContainer = Color.White,
 
-    // Cor terciária: violeta
-    tertiary = SizeProPalette.Violet,
-    onTertiary = Color(0xFF291A45),
-    tertiaryContainer = Color(0xFF40305E),
-    onTertiaryContainer = Color(0xFFE8DBFF),
+    tertiary = SizeProPalette.Orange,
+    onTertiary = Color(0xFF17120A),
+    tertiaryContainer = Color(0xFF704700),
+    onTertiaryContainer = Color.White,
 
-    // Fundo e superfícies
     background = SizeProPalette.Background,
     onBackground = SizeProPalette.TextPrimary,
 
@@ -69,18 +67,17 @@ private val SizeProColors = darkColorScheme(
     surfaceVariant = SizeProPalette.SurfaceVariant,
     onSurfaceVariant = SizeProPalette.TextSecondary,
 
-    // Estados e detalhes
     error = SizeProPalette.Error,
-    onError = Color(0xFF3B1018),
-    errorContainer = Color(0xFF5C252D),
-    onErrorContainer = Color(0xFFFFD9DC),
+    onError = Color.White,
+    errorContainer = Color(0xFF741B2A),
+    onErrorContainer = Color.White,
 
-    outline = SizeProPalette.Border,
-    outlineVariant = Color(0xFF353440),
+    outline = SizeProPalette.Blue,
+    outlineVariant = SizeProPalette.Border,
 
-    inverseSurface = Color(0xFFE9E4EF),
-    inverseOnSurface = Color(0xFF292631),
-    inversePrimary = Color(0xFFAD4E35),
+    inverseSurface = Color.White,
+    inverseOnSurface = Color.Black,
+    inversePrimary = SizeProPalette.Blue,
 
     scrim = Color.Black
 )
