@@ -5,12 +5,12 @@ import com.pixelresize.pro.image.ImageFormat
 import java.util.Locale
 
 data class ImageResult(
-    val uri: Uri,
     val width: Int,
     val height: Int,
-    val fileSizeBytes: Long,
-    val format: ImageFormat
-) {
+    val sizeKb: Int,
+    val format: String
+)
+{
 
     val resolution: String
         get() = "$width × $height px"
