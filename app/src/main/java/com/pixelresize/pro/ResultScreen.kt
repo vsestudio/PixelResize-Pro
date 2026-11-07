@@ -1,294 +1,172 @@
 package com.pixelresize.pro
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalConfiguration
 import com.pixelresize.pro.data.ImageResult
 
 @Composable
 fun ResultScreen(
-    result: ImageResult,
-    onShare: () -> Unit,
+    result: ImageResult?,
     onResizeAgain: () -> Unit,
-    onUploadAnother: () -> Unit
+    onUploadAnother: () -> Unit,
+    onBack: () -> Unit
 ) {
-    val configuration = LocalConfiguration.current
+    var selectedFormat by remember { mutableStateOf("JPG") }
 
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ColorFundo)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        val needsScroll =
-            maxHeight < 700.dp ||
-            configuration.fontScale > 1.15f
-
-        val previewHeight = (maxHeight * 0.24f)
-            .coerceIn(145.dp, 190.dp)
-
-        val scrollState = rememberScrollState()
-
-        val contentModifier = if (needsScroll) {
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 18.dp, vertical = 12.dp)
-        } else {
-            Modifier
-                .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 12.dp)
+        // Top bar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = null, color = Color.White)
+            }
+            Text("Resize", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            IconButton(onClick = {}) {
+                Icon(Icons.Default.MoreVert, contentDescription = null, color = Color.White)
+            }
         }
 
-        Column(
-            modifier = contentModifier,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        // Image Result Wrapper
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(vertical = 12.dp)
+                .background(ColorSuperficie, RoundedCornerShape(16.dp))
+                .border(2.dp, ColorVerde, RoundedCornerShape(16.dp))
+                .padding(12.dp)
         ) {
-
-            // Cabeçalho de sucesso.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Sucesso",
-                    tint = SizeProPalette.Green,
-                    modifier = Modifier
-                        .width(34.dp)
-                        .height(34.dp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
+                Image(
+                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    contentDescription = null,
+                    modifier = Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
                 )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "Imagem guardada!",
-                        fontSize = 21.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Text(
-                        text = "A tua imagem foi processada com sucesso.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "SP",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 19.sp,
-                    color = SizeProPalette.Orange
-                )
-            }
-
-            // Pré-visualização da imagem exportada.
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(previewHeight),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = SizeProPalette.SurfaceVariant
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    ImagePreview(
-                        imageUri = result.uri
-                    )
-                }
-            }
-
-            // Localização do ficheiro.
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = SizeProPalette.SurfaceElevated
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Folder,
-                        contentDescription = null,
-                        tint = SizeProPalette.Orange
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Text(
-                            text = "Localização do ficheiro",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Text(
-                            text = "Downloads / Size Pro",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-
-            // Informações reais do ficheiro.
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = SizeProPalette.Surface
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp)
-                ) {
-                    Text(
-                        text = "Detalhes do resultado",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    ResultDetail(
-                        label = "Resolução",
-                        value = result.resolution
-                    )
-
-                    ResultDetail(
-                        label = "Tamanho do ficheiro",
-                        value = result.formattedFileSize
-                    )
-
-                    ResultDetail(
-                        label = "Formato",
-                        value = result.format.displayName
-                    )
-                }
-            }
-
-            // Espaço flexível apenas quando não existe rolagem.
-            if (needsScroll) {
-                Spacer(modifier = Modifier.height(4.dp))
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-            }
-
-            // Partilhar a imagem exportada.
-            Button(
-                onClick = onShare,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(15.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null
-                )
-
-                Spacer(modifier = Modifier.width(9.dp))
-
-                Text(
-                    text = "Partilhar imagem",
+                    "Result: ${result?.width ?: 1700} × ${result?.height ?: 1132} px · ${result?.sizeKb ?: 265} KB",
+                    color = ColorVerde,
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
 
-            // Reutilizar a imagem no editor.
-            OutlinedButton(
-                onClick = onResizeAgain,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(15.dp)
-            ) {
-                Text("Redimensionar novamente")
+        // Dimension box values
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.weight(1f).background(ColorSuperficie, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                Text("Width (px)", color = Color.Gray, fontSize = 12.sp)
+                Text("${result?.width ?: 1700}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
-
-            // Começar com outra imagem.
-            OutlinedButton(
-                onClick = onUploadAnother,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(15.dp)
-            ) {
-                Text("Escolher outra imagem")
+            Column(modifier = Modifier.weight(1f).background(ColorSuperficie, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                Text("Height (px)", color = Color.Gray, fontSize = 12.sp)
+                Text("${result?.height ?: 1132}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
         }
-    }
-}
 
-@Composable
-private fun ResultDetail(
-    label: String,
-    value: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        // Info mid status
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .background(ColorSuperficie, RoundedCornerShape(12.dp))
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "New size: ${result?.width ?: 1700} × ${result?.height ?: 1132} px · ${result?.sizeKb ?: 265} KB",
+                color = ColorVerde, fontSize = 16.sp, fontWeight = FontWeight.Bold
+            )
+        }
 
-        Text(
-            text = value,
-            modifier = Modifier.weight(1f),
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.End
-        )
+        // Formats Selectors
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("JPG", "PNG", "WEBP").forEach { format ->
+                val isSelected = selectedFormat == format
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(45.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(ColorSuperficie)
+                        .border(1.5.dp, if (isSelected) ColorVerde else Color.Transparent, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(format, color = if (isSelected) ColorVerde else Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Primary Outputs
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {},
+                modifier = Modifier.weight(1f).height(55.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorVerde),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null, color = ColorFundo)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Download", color = ColorFundo, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = {},
+                modifier = Modifier.weight(1f).height(55.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorSuperficie),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.5.dp, ColorVerde)
+            ) {
+                Icon(Icons.Default.Share, contentDescription = null, color = ColorVerde)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share", color = ColorVerde, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Footers
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = onResizeAgain,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorSuperficie)
+            ) {
+                Text("Resize again", color = Color.White)
+            }
+            Button(
+                onClick = onUploadAnother,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorSuperficie)
+            ) {
+                Text("Upload another", color = Color.White)
+            }
+        }
     }
 }
